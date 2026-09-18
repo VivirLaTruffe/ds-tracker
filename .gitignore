@@ -1,0 +1,4 @@
+# Personal exam data must never be committed to this public repo
+*.ds.json
+data.json
+.claude/
