@@ -344,9 +344,7 @@ function render() {
   renderSummary();
   renderFilters();
   const view = $('view');
-  view.replaceChildren(state.view === 'calendar' && typeof renderCalendar === 'function'
-    ? renderCalendar()
-    : renderList());
+  view.replaceChildren(state.view === 'calendar' ? renderCalendar() : renderList());
 }
 
 /* --------------------------------------------------------------- exam dialog */

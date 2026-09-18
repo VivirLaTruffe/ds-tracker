@@ -9,23 +9,24 @@ first, and track whether you have finished revising for each one.
 
 ## What it does
 
-For each exam you record:
+The interface is in French. For each exam you record:
 
 | Field | Options |
 |---|---|
-| Subject | Fully editable list (comes pre-filled with a typical engineering-school set) |
-| Type | QCM, DST (written, on paper), Online, Oral, Practical (TP), Computer-based, Project / report, Other |
+| Subject | Fully editable list with colours (pre-filled with a typical engineering-school set) |
+| Type | QCM, DST (sur table), En ligne, Oral, TP noté, Sur machine, Projet / rapport, Autre |
 | Date & start time | — |
 | Duration | Minutes, with quick presets (30 min → 4 h) |
-| Importance | Low, Normal, High, Critical |
+| Importance | Faible, Normale, Élevée, Critique |
 | Revision | "Finished revising" checkbox, one click from the list |
 | Notes | Free text (allowed documents, chapters, room…) |
 
 Two views:
 
-- **List** — exams grouped by *Overdue / This week / Next week / Later / Past*, with a countdown
-  (`D-3`), and a warning colour when an important exam is close and revision is not finished.
-- **Calendar** — month grid, one coloured chip per exam.
+- **List** — exams grouped by *Today / This week / Next week / Later / Past*, with a countdown
+  (`J-3`), and a warning colour when an exam is close and revision is not finished (sooner for
+  High/Critical exams).
+- **Calendar** — month grid, one coloured chip per exam (✓ once revised); click a day to add an exam.
 
 Plus filters (subject, type, importance, revision status) and a summary of what is left to revise.
 

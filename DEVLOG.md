@@ -87,3 +87,26 @@ exam label; no console errors.
 
 **Not done yet.** Calendar tab (button exists but shows the list), linked-file flow untested in a
 browser.
+
+---
+
+## 2026-09-18 — Calendar view and end-to-end checks
+
+**Calendar.** `js/calendar.js` renders a Monday-first month grid (5 or 6 rows as needed), one chip
+per exam coloured by subject, prefixed with ✓ when revised. At most 3 chips per day, then "+n
+autres". Clicking a day opens the form with that date pre-filled. The calendar shows past exams too
+(the "show past" toggle only applies to the list) but respects the other filters.
+
+**The linked-file flow, tested without the OS file picker.** Native pickers can't be driven from a
+test, but the origin-private file system hands out the same `FileSystemFileHandle` objects, so the
+`FileLink` code was exercised against one: an empty file reads as "no data yet"; the handle is stored
+in IndexedDB; a change is autosaved and the status shows the file name; our own write does not count
+as an external change; an outside edit is detected and reloaded on focus; a corrupt JSON file and a
+file from a newer data version each give a readable error. **What is still unverified:** the real
+`showOpenFilePicker` / `showSaveFilePicker` dialogs and the browser's "re-grant access" prompt on
+a later visit — those need a human click.
+
+**Also checked:** no horizontal overflow at 375 px wide; no console errors.
+
+**Next ideas** (not started): installable/offline PWA, `.ics` export for the calendar, per-exam
+coefficient, a "revision checklist" per exam.
