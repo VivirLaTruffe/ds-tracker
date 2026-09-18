@@ -31,3 +31,28 @@ disclosure lives in the README.
 importance, revised, notes}] }` — versioned from day one so later changes can migrate old files.
 
 **Next.** Data layer and pre-filled subject list, then the list UI.
+
+---
+
+## 2026-09-18 — Data layer and storage
+
+**`js/model.js`** holds the constants (8 exam types, 4 importance levels, duration presets), the
+pre-filled subject list, and `sanitizeData()`. Anything read from a file goes through it: bad fields
+are repaired (unknown type → "Other", bad time → empty), unrecoverable entries are dropped, and a file
+from a *newer* data version is refused rather than silently mangled. Treating imported JSON as
+untrusted also matters later for the UI, which will only ever use `textContent`, never `innerHTML`.
+
+**`js/storage.js`** has the three persistence layers. Worth noting:
+
+- The `FileSystemFileHandle` is kept in IndexedDB so the next visit can re-link the file. Browsers
+  require a click to re-grant write permission, so on reload the app will show a "reconnect" button
+  instead of prompting out of nowhere.
+- An *empty* file counts as "no data yet" so a freshly created `.json` can be linked directly.
+- `changedOnDisk()` compares `lastModified`. This is for the two-computer workflow: after a
+  `git pull` the file changed under the app, and it should reload instead of overwriting it on the
+  next edit.
+
+**Dates are `YYYY-MM-DD` strings in local time**, and day differences are computed through
+`Date.UTC` so a daylight-saving change can never turn "in 3 days" into 2 or 4.
+
+**Next.** The page itself: list view, exam form, subjects manager, filters.
