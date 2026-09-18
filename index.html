@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>DS Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <h1>DS Tracker</h1>
+      <div class="topbar-actions">
+        <span id="save-status" class="status" role="status"></span>
+        <button type="button" id="btn-file" hidden>Fichier de données</button>
+        <button type="button" id="btn-export">Exporter</button>
+        <button type="button" id="btn-import">Importer</button>
+        <input type="file" id="import-input" accept=".json,application/json" hidden>
+      </div>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main class="wrap">
+    <section id="summary" class="summary" aria-label="Résumé"></section>
+
+    <section class="toolbar" aria-label="Affichage et filtres">
+      <div class="tabs" role="tablist" aria-label="Vue">
+        <button type="button" role="tab" id="tab-list" data-view="list">Liste</button>
+        <button type="button" role="tab" id="tab-calendar" data-view="calendar">Calendrier</button>
+      </div>
+      <div class="filters">
+        <select id="flt-subject" aria-label="Filtrer par matière"></select>
+        <select id="flt-type" aria-label="Filtrer par type"></select>
+        <select id="flt-importance" aria-label="Filtrer par importance"></select>
+        <select id="flt-revision" aria-label="Filtrer par révisions"></select>
+        <label class="check" id="flt-past-wrap"><input type="checkbox" id="flt-past"> Voir les DS passés</label>
+      </div>
+      <button type="button" id="btn-new" class="primary">+ Nouveau DS</button>
+    </section>
+
+    <section id="view" aria-live="polite"></section>
+  </main>
+
+  <footer class="wrap footer">
+    <p>
+      DS Tracker — code entièrement généré par IA (Claude, Anthropic), dirigé par
+      <a href="https://github.com/VivirLaTruffe" target="_blank" rel="noopener">VivirLaTruffe</a>.
+      Licence <a href="LICENSE" target="_blank" rel="noopener">PolyForm Noncommercial 1.0.0</a> :
+      usage non commercial uniquement, revente interdite.
+    </p>
+  </footer>
+
+  <!-- Exam form -->
+  <dialog id="exam-dialog">
+    <form id="exam-form" novalidate>
+      <h2 id="exam-dialog-title">Nouveau DS</h2>
+      <div class="grid">
+        <label class="span2">Matière
+          <span class="row">
+            <select id="f-subject"></select>
+            <button type="button" id="btn-manage-subjects" class="ghost">Gérer…</button>
+          </span>
+        </label>
+        <label>Type <select id="f-type"></select></label>
+        <label>Date <input type="date" id="f-date"></label>
+        <label>Heure de début <input type="time" id="f-time"></label>
+        <label>Durée (minutes) <input type="number" id="f-duration" min="0" max="1440" step="5" inputmode="numeric" placeholder="ex. 90"></label>
+        <div class="span2 chips" id="duration-presets" aria-label="Durées courantes"></div>
+        <fieldset class="span2">
+          <legend>Importance</legend>
+          <div class="seg" id="f-importance"></div>
+        </fieldset>
+        <label class="span2 check"><input type="checkbox" id="f-revised"> J'ai fini de réviser pour ce DS</label>
+        <label class="span2">Titre (facultatif) <input type="text" id="f-title" maxlength="120" placeholder="ex. DS n°1 — chapitres 1 à 3"></label>
+        <label class="span2">Notes <textarea id="f-notes" rows="3" maxlength="2000" placeholder="Documents autorisés, salle, chapitres…"></textarea></label>
+      </div>
+      <p id="form-error" class="error" role="alert" hidden></p>
+      <div class="actions">
+        <button type="button" id="btn-delete" class="danger">Supprimer</button>
+        <span class="spacer"></span>
+        <button type="button" id="btn-cancel">Annuler</button>
+        <button type="submit" class="primary">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Subjects manager -->
+  <dialog id="subjects-dialog">
+    <div class="dialog-body">
+      <h2>Matières</h2>
+      <div id="subjects-list" class="subjects-list"></div>
+      <form id="subject-add" class="row">
+        <input type="text" id="subject-new-name" maxlength="80" placeholder="Nouvelle matière" aria-label="Nom de la nouvelle matière">
+        <button type="submit" class="primary">Ajouter</button>
+      </form>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" id="btn-subjects-close">Fermer</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Data file -->
+  <dialog id="file-dialog">
+    <div class="dialog-body">
+      <h2>Fichier de données</h2>
+      <p id="file-current" class="muted"></p>
+      <p>
+        Lie un fichier <code>.json</code> de ton choix (par exemple dans ton dépôt git privé) :
+        l'appli le lit et y enregistre automatiquement chaque modification.
+        Rien n'est envoyé sur internet.
+      </p>
+      <div class="stack">
+        <button type="button" id="btn-file-open">Ouvrir un fichier existant…</button>
+        <button type="button" id="btn-file-create">Créer un nouveau fichier…</button>
+        <button type="button" id="btn-file-unlink" class="danger">Délier le fichier</button>
+      </div>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" id="btn-file-close">Fermer</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="js/model.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

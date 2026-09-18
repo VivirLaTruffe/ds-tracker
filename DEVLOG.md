@@ -56,3 +56,34 @@ untrusted also matters later for the UI, which will only ever use `textContent`,
 `Date.UTC` so a daylight-saving change can never turn "in 3 days" into 2 or 4.
 
 **Next.** The page itself: list view, exam form, subjects manager, filters.
+
+---
+
+## 2026-09-18 — List view, exam form, subjects, filters
+
+**What works.** `index.html` + `styles.css` + `js/app.js`: exams grouped as *Today / This week / Next
+week / Later / Past*, each with a countdown (`J-5`, `Demain`), subject colour bar, type and importance
+badges, and a one-click "revision finished" checkbox right on the card. Summary tiles show the next
+exam, how many are coming, and how many are still unrevised.
+
+**Urgency rule.** An exam that is *not* fully revised is highlighted red when it is ≤ 2 days away, or
+≤ 7 days away and importance is High/Critical; amber at ≤ 7 days (≤ 14 for High/Critical). A revised
+exam never shouts. This is a heuristic, kept in one function (`urgency()`), easy to tune.
+
+**"This week" means until Sunday, not "next 7 days".** Weeks start on Monday; an exam next Wednesday
+is "Next week" even if it is only 5 days away. It matches how a timetable is actually read.
+
+**Subjects are data, not code.** The pre-filled list is only a starting point; the manager dialog
+edits names and colours and adds/removes subjects. Deleting a subject that exams still use keeps
+those exams and shows them as "Sans matière" rather than destroying data.
+
+**Security note.** The UI is built with a small `h()` helper that only ever creates text nodes, so a
+hostile title inside an imported JSON file renders as plain text. Checked by saving an exam titled
+`<img src=x onerror=…>`: nothing was injected.
+
+**Manual test pass** (in a real browser, seeded with 6 exams): create with missing date → error;
+duration preset highlighting; create; toggle revised; edit; delete; add/delete subject; orphan
+exam label; no console errors.
+
+**Not done yet.** Calendar tab (button exists but shows the list), linked-file flow untested in a
+browser.

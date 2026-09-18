@@ -86,35 +86,42 @@ const FileLink = {
     return this.handle ? this.handle.name : '';
   },
 
-  async _readHandle() {
-    const file = await this.handle.getFile();
-    this.lastModified = file.lastModified;
+  async _readFrom(handle) {
+    const file = await handle.getFile();
     const text = await file.text();
     // An empty file (just created by the user) means "no data yet".
-    if (!text.trim()) return null;
+    if (!text.trim()) return { data: null, lastModified: file.lastModified };
     let parsed;
     try {
       parsed = JSON.parse(text);
     } catch (e) {
       throw new Error("Ce fichier n'est pas du JSON valide.");
     }
-    return sanitizeData(parsed);
+    return { data: sanitizeData(parsed), lastModified: file.lastModified };
   },
 
-  /** Ask the user to pick an existing file. Returns its data (null if the file is empty). */
+  /**
+   * Ask the user to pick an existing file. Nothing is linked yet: the caller inspects `data`
+   * (null if the file is empty) and then calls attach(handle, lastModified) to commit.
+   */
   async pickExisting() {
     const [handle] = await window.showOpenFilePicker({ types: JSON_PICKER_TYPES, multiple: false });
+    const { data, lastModified } = await this._readFrom(handle);
+    return { handle, data, lastModified };
+  },
+
+  async attach(handle, lastModified) {
     this.handle = handle;
-    const data = await this._readHandle();
+    this.lastModified = lastModified;
     await idbSet(IDB_HANDLE_KEY, handle);
-    return data;
   },
 
   /** Ask the user where to create a new file, and write `data` into it. */
   async pickNew(data) {
-    this.handle = await window.showSaveFilePicker({ suggestedName: 'ds-tracker.json', types: JSON_PICKER_TYPES });
-    await idbSet(IDB_HANDLE_KEY, this.handle);
+    const handle = await window.showSaveFilePicker({ suggestedName: 'ds-tracker.json', types: JSON_PICKER_TYPES });
+    this.handle = handle;
     await this.write(data);
+    await idbSet(IDB_HANDLE_KEY, handle);
   },
 
   /**
@@ -138,11 +145,14 @@ const FileLink = {
   async grantAndRead() {
     const perm = await this.handle.requestPermission({ mode: 'readwrite' });
     if (perm !== 'granted') throw new Error('Accès au fichier refusé.');
-    return this._readHandle();
+    return this.read();
   },
 
+  /** Re-read the linked file. Returns its data (null if empty). */
   async read() {
-    return this._readHandle();
+    const { data, lastModified } = await this._readFrom(this.handle);
+    this.lastModified = lastModified;
+    return data;
   },
 
   async write(data) {
