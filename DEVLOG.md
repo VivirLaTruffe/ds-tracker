@@ -110,3 +110,53 @@ a later visit — those need a human click.
 
 **Next ideas** (not started): installable/offline PWA, `.ics` export for the calendar, per-exam
 coefficient, a "revision checklist" per exam.
+
+---
+
+## 2026-09-20 — TD Tracker, part 1: reading a timetable
+
+**The idea.** Import the school timetable (ADE, exported as iCalendar) and tell the user which TD to
+prepare *before* the class: the day before and the day itself. Example: on Wednesday, "prepare the
+maths TD" because the next maths TD is Thursday 11:00. A second top-level page, next to the DS
+tracker, will show it; this entry is only the logic underneath.
+
+**Why a file import and not a live link.** The app is static and public, so it has no server and
+cannot log in to ADE; browsers also block cross-site requests to it. ADE's export dialog gives an
+`.ics` file for any date range (and a "generate URL" option that would hit the same wall). So the
+user exports once for the whole semester and imports the file. The file is parsed in the browser.
+
+**`js/ics.js`** is a deliberately small iCalendar reader: unfolds wrapped lines, handles `Z`
+(UTC → local), `TZID` / floating times (taken as local), all-day events, escaped commas, and
+skips cancelled events. It keeps uid, title, start, end and location and **drops the description**,
+which on a timetable is mostly teacher names.
+
+**`js/schedule.js`** holds the pure logic:
+- `classifyEvent` guesses `ds / td / tp / cm / other` from the title (real titles from the author's
+  timetable: `Mathématiques TD 01`, `1- Electrostatique_TD1`, `Partie I : Signaux pour les systèmes
+  _TD1`, `DS Classe, Heritage et polymorphisme_TP1`). `DS` wins over the session type, so an exam
+  held in a lab slot is not mistaken for a TP. Word-boundary checks keep `Autopsy` or `Adstra` from
+  matching.
+- `courseLabel` strips the `TD 01` suffix and a leading `1-` to get the course name.
+- Subject matching: an alias chosen by the user wins, otherwise a name containment guess
+  ("Mécanique" ↔ "Mécanique cinématique"). Courses that match nothing stay visible under their own
+  name until the user links them.
+- `isPrepNow`: not prepared, class not over, and within N days (default 1 = the day before and the
+  day itself). A TD whose class already ended today drops out.
+- `mergeSchedule` replaces only the days covered by the new file, so the timetable can be imported
+  in chunks and a corrected week overwrites the old one. "Prepared" flags survive a re-import even
+  if ADE hands out different UIDs, by falling back to title + start time.
+
+**Data model bumped to v2** (`schedule`, `aliases`, `tdDone`, `settings`). A v1 file loads fine and
+gets empty defaults; a v2 file is refused by an older build rather than silently stripped.
+
+**Testing.** Run in a real browser against an `.ics` built to mimic the author's week (CRLF, folded
+line, `TZID`, all-day, cancelled, escaped commas): classification of 16 titles, label extraction,
+parsing, the prepare-now window at several clock times (including Wednesday 12:30, once the
+mechanics TD is over), re-import without duplicates, partial re-import, sanitising hostile input.
+Caveat: no real ADE export was available, so the parser is written to the iCalendar spec and to
+what ADE's export dialog advertises, not verified against an actual ADE file yet.
+
+**Known limitation.** "The day before" is literal: a Monday TD shows up on Sunday, not Friday. The
+lead time is configurable (up to 3 days) for that reason.
+
+**Next.** The TD Tracker page and the DS / TD switch in the header.

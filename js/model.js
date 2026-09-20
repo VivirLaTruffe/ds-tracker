@@ -1,7 +1,7 @@
 /* Data model: constants, defaults, validation and small date helpers. No DOM here. */
 'use strict';
 
-const DATA_VERSION = 1;
+const DATA_VERSION = 2;
 
 const EXAM_TYPES = [
   { id: 'qcm', label: 'QCM' },
@@ -22,6 +22,16 @@ const IMPORTANCE_LEVELS = [
 ];
 
 const DURATION_PRESETS = [30, 45, 60, 90, 120, 180, 240];
+
+/** How early a TD should show up in "to prepare now": 0 = only on the day itself. */
+const TD_LEAD_OPTIONS = [
+  { id: 0, label: 'Le jour même' },
+  { id: 1, label: 'La veille et le jour même' },
+  { id: 2, label: '2 jours avant' },
+  { id: 3, label: '3 jours avant' },
+];
+const DEFAULT_TD_LEAD_DAYS = 1;
+const MAX_EVENTS = 5000;
 
 const SUBJECT_COLORS = [
   '#4f6df5', '#e5484d', '#30a46c', '#f5a524', '#8e4ec6', '#0091b2',
@@ -46,6 +56,7 @@ const DEFAULT_SUBJECT_NAMES = [
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const EVENT_DT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/; // local date-time, 'YYYY-MM-DDTHH:MM'
 
 function newId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -61,6 +72,10 @@ function defaultData() {
       color: SUBJECT_COLORS[i % SUBJECT_COLORS.length],
     })),
     exams: [],
+    schedule: { events: [], importedAt: '', source: '' },
+    aliases: {},
+    tdDone: {},
+    settings: { tdLeadDays: DEFAULT_TD_LEAD_DAYS },
   };
 }
 
@@ -114,7 +129,54 @@ function sanitizeData(raw) {
     });
   });
 
-  return { version: DATA_VERSION, subjects, exams };
+  // ---- v2: imported timetable, course-name -> subject aliases, TD "prepared" flags, settings.
+  // A v1 file simply has none of these and gets the empty defaults.
+  const sch = raw.schedule && typeof raw.schedule === 'object' && !Array.isArray(raw.schedule) ? raw.schedule : {};
+  const events = [];
+  const seenEventUids = new Set();
+  (Array.isArray(sch.events) ? sch.events : []).slice(0, MAX_EVENTS).forEach((ev) => {
+    if (!ev || typeof ev.title !== 'string' || typeof ev.start !== 'string' || !EVENT_DT_RE.test(ev.start)) return;
+    const end = typeof ev.end === 'string' && EVENT_DT_RE.test(ev.end) && ev.end >= ev.start ? ev.end : ev.start;
+    let uid = typeof ev.uid === 'string' && ev.uid ? ev.uid.slice(0, 200) : `${ev.title}|${ev.start}`;
+    if (seenEventUids.has(uid)) uid = `${uid}#${events.length}`;
+    seenEventUids.add(uid);
+    events.push({
+      uid,
+      title: ev.title.trim().slice(0, 200),
+      start: ev.start,
+      end,
+      location: typeof ev.location === 'string' ? ev.location.trim().slice(0, 120) : '',
+    });
+  });
+
+  const aliases = {};
+  if (raw.aliases && typeof raw.aliases === 'object' && !Array.isArray(raw.aliases)) {
+    for (const [k, v] of Object.entries(raw.aliases)) {
+      if (k !== '__proto__' && typeof v === 'string') aliases[k.slice(0, 200)] = v;
+    }
+  }
+  const tdDone = {};
+  if (raw.tdDone && typeof raw.tdDone === 'object' && !Array.isArray(raw.tdDone)) {
+    for (const [k, v] of Object.entries(raw.tdDone)) {
+      if (k !== '__proto__' && v === true) tdDone[k.slice(0, 200)] = true;
+    }
+  }
+  const lead = raw.settings && raw.settings.tdLeadDays;
+  const tdLeadDays = TD_LEAD_OPTIONS.some((o) => o.id === lead) ? lead : DEFAULT_TD_LEAD_DAYS;
+
+  return {
+    version: DATA_VERSION,
+    subjects,
+    exams,
+    schedule: {
+      events,
+      importedAt: typeof sch.importedAt === 'string' ? sch.importedAt.slice(0, 40) : '',
+      source: typeof sch.source === 'string' ? sch.source.slice(0, 200) : '',
+    },
+    aliases,
+    tdDone,
+    settings: { tdLeadDays },
+  };
 }
 
 /* ---- Dates: everything is local time, dates are 'YYYY-MM-DD' strings ---- */
@@ -142,6 +204,12 @@ function daysUntil(dateStr, from = todayStr()) {
   const b = parseDateStr(dateStr);
   return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
     - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000);
+}
+
+/** 'YYYY-MM-DDTHH:MM' (local) -> Date */
+function parseLocalDateTime(s) {
+  return new Date(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10)),
+    Number(s.slice(11, 13)), Number(s.slice(14, 16)));
 }
 
 function formatDuration(min) {
