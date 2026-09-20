@@ -73,10 +73,10 @@ function renderTdOnboarding() {
     h('h2', {}, 'Récupère ton emploi du temps'),
     h('ol', {},
       h('li', {}, "Dans ADE, clique sur l'icône d'export (le calendrier avec une flèche, en bas à gauche)."),
-      h('li', {}, 'Choisis la période (du début à la fin du semestre) et le format iCalendar, puis « Ok » : un fichier .ics est téléchargé.'),
+      h('li', {}, 'Choisis la période (la semaine en cours et la suivante suffisent) et le format iCalendar, puis « Ok » : un fichier .ics est téléchargé.'),
       h('li', {}, 'Clique sur « Importer mon planning (.ics) » et choisis ce fichier.')),
     h('p', { class: 'small' },
-      'Le fichier est lu dans ton navigateur, rien n\'est envoyé nulle part. Ré-importe-le quand ton planning change. '
+      'Le fichier est lu dans ton navigateur, rien n\'est envoyé nulle part. Ré-importe-le quand ton planning change : seuls les jours du nouveau fichier sont remplacés, tes cases « préparé » restent. '
       + 'Tout calendrier au format .ics fonctionne. Les séances dont le titre contient « TD » sont reconnues comme des TD.'),
     h('button', { type: 'button', class: 'primary', onclick: () => $('td-ics-input').click() }, 'Importer mon planning (.ics)'));
 }

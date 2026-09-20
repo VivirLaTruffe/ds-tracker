@@ -198,3 +198,13 @@ single place to adapt.
 
 **Ideas, not started:** import the DS that appear in the timetable automatically (they are already
 detected as kind `ds`), a per-TD note, an installable/offline version.
+
+---
+
+## 2026-09-20 — Import in short windows, not per semester
+
+The author's timetable is only reliable one or two weeks ahead and changes often, so exporting the
+whole semester makes no sense. The import logic already handled this (a new file replaces only the
+days it covers, older and later days stay, "prepared" ticks survive), so only the onboarding text
+changed: it now suggests exporting the current and next week and re-importing when ADE moves.
+The "planning imported until" tile already turns red under 3 days, which fits this weekly rhythm.
