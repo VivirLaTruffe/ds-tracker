@@ -30,6 +30,24 @@ Two views:
 
 Plus filters (subject, type, importance, revision status) and a summary of what is left to revise.
 
+The header switches between two pages: **DS Tracker** (exams) and **TD Tracker** (see below).
+
+## TD Tracker: what to prepare before class
+
+The second page reads your timetable and tells you which **TD** (tutorial session) to prepare before
+you sit in it — the day before and the day itself (configurable up to 3 days ahead).
+
+1. In your school's timetable (built and tested for **ADE**), export a period as **iCalendar** and
+   save the `.ics` file. Any calendar that exports `.ics` works.
+2. Click **Importer mon planning (.ics)**. The file is read in your browser; nothing is uploaded.
+3. Sessions whose title contains "TD" are listed under **À préparer maintenant** with a
+   "prepared" checkbox. Course names (`Mathématiques`, `Electrostatique`…) can be linked to your
+   own subjects in **Matières des cours**; names that resemble a subject are matched automatically.
+
+Re-import when your timetable changes: the days covered by the new file are replaced, the rest is
+kept, and your "prepared" ticks are preserved. The app cannot log in to ADE for you (it is a static
+page with no server), so importing is a manual step.
+
 ## Your data stays yours
 
 There is **no server, no account, no tracking**. The app is plain HTML/CSS/JS.
@@ -43,7 +61,8 @@ Where your exams live is *your* choice:
    **Export** to download your data and **Import** to load it back.
 3. In every case a copy is also kept in your browser's local storage as a safety net.
 
-Tip for using it on several computers: keep the JSON in a private git repository and
+Your imported timetable (titles, times, rooms — no teacher names) is stored in that same file, so keep it
+private. Tip for using it on several computers: keep the JSON in a private git repository and
 `git pull` / `git push` it like any other file.
 
 ## Run it

@@ -160,3 +160,41 @@ what ADE's export dialog advertises, not verified against an actual ADE file yet
 lead time is configurable (up to 3 days) for that reason.
 
 **Next.** The TD Tracker page and the DS / TD switch in the header.
+
+---
+
+## 2026-09-20 — TD Tracker, part 2: the page
+
+**Two pages, one header.** "DS Tracker" and "TD Tracker" are now the two buttons at the top; the
+choice is remembered. Export/Import and the linked file cover both pages, since they are the same
+JSON.
+
+**TD page (`js/td.js`).** Summary tiles (how many to prepare now and which subjects, upcoming TD,
+how far the imported timetable goes — it turns red when it ends in fewer than 3 days, as a nudge to
+import the next chunk), then the list: **À préparer maintenant** first, in red for today and amber
+for tomorrow, then the usual Today / This week / Next week / Later buckets (the DS page's
+`groupExams` got a `dayOf` parameter so both pages share it). Ticking "TD à préparer" moves the
+TD out of the top group. A TD whose class is over drops to "Passés".
+
+**Course → subject mapping.** ADE course names rarely match the subject list (`Mathématiques`,
+`Electrostatique`, `Partie I : Signaux…`). Unmatched ones stay visible under their own name with an
+"Associer une matière" link; the "Matières des cours" dialog lets the user pick a subject, or
+create one from the course name in one step. After an import the app says how many courses are
+still unlinked.
+
+**Browser-tested with a fake clock.** Pretending it is Wednesday 09:00 and importing an
+ADE-shaped `.ics`: the tile reads "Mécanique (aujourd'hui) · Signaux (aujourd'hui) · Mathématiques
+(demain)", exactly the behaviour asked for. Also checked: switching pages, importing, ticking
+(persisted to local storage), "same day only" mode, creating a subject from the mapping dialog,
+"show past", a non-iCalendar file giving a readable error, no console errors.
+
+**A small trap worth writing down.** During testing the page kept running the *previous* `app.js`
+because the browser had cached it — after a refactor that spans several files, a stale script
+looks exactly like a logic bug. Hard-reload before debugging.
+
+**Still unverified.** A real ADE export: only ADE-shaped test data was used. If a real file's titles
+don't contain "TD" the way the author's timetable does, the keyword rule in `classifyEvent` is the
+single place to adapt.
+
+**Ideas, not started:** import the DS that appear in the timetable automatically (they are already
+detected as kind `ds`), a per-TD note, an installable/offline version.

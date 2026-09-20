@@ -10,7 +10,11 @@
 <body>
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <h1>DS Tracker</h1>
+      <h1 class="sr-only">Suivi des cours</h1>
+      <nav class="pages" aria-label="Pages">
+        <button type="button" data-page="ds">DS Tracker</button>
+        <button type="button" data-page="td">TD Tracker</button>
+      </nav>
       <div class="topbar-actions">
         <span id="save-status" class="status" role="status"></span>
         <button type="button" id="btn-file" hidden>Fichier de données</button>
@@ -24,6 +28,7 @@
   <div id="banner" class="banner" hidden></div>
 
   <main class="wrap">
+   <div id="page-ds">
     <section id="summary" class="summary" aria-label="Résumé"></section>
 
     <section class="toolbar" aria-label="Affichage et filtres">
@@ -42,6 +47,24 @@
     </section>
 
     <section id="view" aria-live="polite"></section>
+   </div>
+
+   <div id="page-td" hidden>
+    <section id="td-summary" class="summary" aria-label="Résumé des TD"></section>
+
+    <section class="toolbar" aria-label="Planning et réglages">
+      <button type="button" id="btn-td-import" class="primary">Importer mon planning (.ics)</button>
+      <input type="file" id="td-ics-input" accept=".ics,text/calendar" hidden>
+      <button type="button" id="btn-td-mapping">Matières des cours</button>
+      <label class="inline">Rappel
+        <select id="td-lead" aria-label="Quand préparer un TD"></select>
+      </label>
+      <label class="check"><input type="checkbox" id="td-past"> Voir les TD passés</label>
+      <span id="td-schedule-info" class="muted small"></span>
+    </section>
+
+    <section id="td-view" aria-live="polite"></section>
+   </div>
   </main>
 
   <footer class="wrap footer">
@@ -125,6 +148,22 @@
     </div>
   </dialog>
 
+  <!-- Course label -> subject mapping -->
+  <dialog id="mapping-dialog">
+    <div class="dialog-body">
+      <h2>Matières des cours</h2>
+      <p class="muted small">
+        Les noms de cours viennent de ton planning. Associe chacun à une de tes matières
+        (elle donne sa couleur au TD). « Automatique » cherche un nom ressemblant.
+      </p>
+      <div id="mapping-list" class="subjects-list"></div>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" id="btn-mapping-close">Fermer</button>
+      </div>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="js/model.js"></script>
@@ -132,6 +171,7 @@
   <script src="js/ics.js"></script>
   <script src="js/schedule.js"></script>
   <script src="js/calendar.js"></script>
+  <script src="js/td.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

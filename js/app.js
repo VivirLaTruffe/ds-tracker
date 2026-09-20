@@ -36,7 +36,9 @@ const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
 
 const state = {
   data: null,
+  page: 'ds', // 'ds' | 'td'
   view: 'list',
+  tdShowPast: false,
   calMonth: todayStr().slice(0, 7), // 'YYYY-MM'
   filters: { subject: '', type: '', importance: '', revision: '', showPast: false },
   file: 'none', // 'none' | 'ready' | 'needs-permission'
@@ -51,7 +53,7 @@ function subjectById(id) {
 }
 
 function savePrefs() {
-  Local.savePrefs({ view: state.view, filters: state.filters });
+  Local.savePrefs({ page: state.page, view: state.view, filters: state.filters, tdShowPast: state.tdShowPast });
 }
 
 /* ---------------------------------------------------------------- persistence */
@@ -248,7 +250,8 @@ function renderSummary() {
 
 /* ----------------------------------------------------------------- list view */
 
-function groupExams(exams) {
+/** Buckets items by how far away their day is. `dayOf` lets the TD page reuse this. */
+function groupExams(exams, dayOf = (e) => e.date) {
   const dow = (new Date().getDay() + 6) % 7; // Monday = 0
   const toSunday = 6 - dow;
   const groups = [
@@ -259,7 +262,7 @@ function groupExams(exams) {
     { title: 'Passés', items: [] },
   ];
   for (const e of exams) {
-    const d = daysUntil(e.date);
+    const d = daysUntil(dayOf(e));
     let idx;
     if (d < 0) idx = 4;
     else if (d === 0) idx = 0;
@@ -341,6 +344,16 @@ function renderFilters() {
 
 function render() {
   renderStatus();
+  for (const btn of document.querySelectorAll('.pages button')) {
+    btn.setAttribute('aria-current', String(btn.dataset.page === state.page));
+  }
+  $('page-ds').hidden = state.page !== 'ds';
+  $('page-td').hidden = state.page !== 'td';
+  document.title = state.page === 'td' ? 'TD Tracker' : 'DS Tracker';
+  if (state.page === 'td') {
+    renderTd();
+    return;
+  }
   renderSummary();
   renderFilters();
   const view = $('view');
@@ -610,6 +623,10 @@ async function importFromInput(event) {
 /* --------------------------------------------------------------------- init */
 
 function bindEvents() {
+  for (const btn of document.querySelectorAll('.pages button')) {
+    btn.addEventListener('click', () => { state.page = btn.dataset.page; savePrefs(); render(); });
+  }
+  bindTdEvents();
   $('btn-new').addEventListener('click', () => openExamDialog(null));
   $('exam-form').addEventListener('submit', submitExamForm);
   $('btn-cancel').addEventListener('click', () => $('exam-dialog').close());
@@ -657,6 +674,8 @@ async function init() {
   state.data = Local.loadData() || defaultData();
   const prefs = Local.loadPrefs();
   if (prefs.view === 'calendar' || prefs.view === 'list') state.view = prefs.view;
+  if (prefs.page === 'ds' || prefs.page === 'td') state.page = prefs.page;
+  state.tdShowPast = prefs.tdShowPast === true;
   if (prefs.filters && typeof prefs.filters === 'object') Object.assign(state.filters, prefs.filters);
 
   fillExamFormOptions();
