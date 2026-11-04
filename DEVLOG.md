@@ -208,3 +208,50 @@ whole semester makes no sense. The import logic already handled this (a new file
 days it covers, older and later days stay, "prepared" ticks survive), so only the onboarding text
 changed: it now suggests exporting the current and next week and re-importing when ADE moves.
 The "planning imported until" tile already turns red under 3 days, which fits this weekly rhythm.
+
+---
+
+## 2026-11-04 — Chapters, TD notes, DS imported from the timetable, dark theme, offline
+
+The four features the author picked, in one pass. Data model bumped to **v3**: a v1 or v2 file
+loads with empty defaults; a v3 file is refused by an older build rather than silently stripped
+(same rule as before).
+
+**DS from the timetable.** The `.ics` import already classified DS sessions (`classifyEvent`);
+they now become exams (`syncDsFromSchedule` in `js/schedule.js`): date, time, duration from
+start/end, room in the notes, subject through the same matching as TDs (aliases first), type
+guessed from the title (QCM, oral, machine, TP, online, otherwise DST). Three rules:
+- an exam remembers the event it came from, by UID **and** by title + start, because ADE may hand
+  out different UIDs on each export: re-importing never duplicates it;
+- if the DS moved, date/time/duration follow, everything the user added is kept;
+- a DS the user deletes is remembered in `dsDismissed` and never recreated. Past DS are ignored.
+A switch on the TD page turns the feature off. Imported exams carry a *Planning* badge.
+
+**Chapters.** Each exam has a checklist (up to 50 items) edited in the form — Enter in the
+"new chapter" field adds it instead of submitting the form — and shown on the card as a
+progress bar that unfolds into checkboxes, ticked directly from the list. The open/closed state
+of each list survives re-renders.
+
+**TD notes.** A note per TD, typed directly on the card. Saved while typing through a new
+`commitQuiet()` (persist without re-rendering: a re-render rebuilt the textarea and stole the
+focus at every keystroke). Notes survive a re-import like the "prepared" ticks, by title +
+start when UIDs change.
+
+**Theme.** The CSS already followed the system theme. A header button now cycles *Auto /
+Clair / Sombre*, stored per device (localStorage, not the data file: one file can be opened on a
+light laptop and a dark desktop). An inline script applies it before the first paint, so a dark
+user never sees a white flash; the browser bar colour follows. Small polish: cards lift on
+hover, colour transitions on theme change.
+
+**Offline / installable (PWA).** `manifest.webmanifest`, icons drawn with Pillow
+(`tools/make_icons.py`), and a service worker (`sw.js`) using stale-while-revalidate: the app
+opens from the cache at once and refreshes the cache in the background. Data never goes through
+it. Registered only over http(s); `file://` keeps working without the offline copy. Chrome/Edge
+show an *Installer l'appli* button when the browser offers installation. Bump `CACHE` in `sw.js`
+when the list of files changes.
+
+**Tested in Chromium (Playwright), 19 checks, all green**: theme cycle and persistence (and the
+dark background really applied), chapter list from the form and from the card, v3 save, DS
+import with subject/duration/room, re-import without duplicate, past DS ignored, TD note saved,
+deleted DS not recreated, service worker active, page reload **offline**, no horizontal scroll
+at 390 px, no console error. Screenshots checked in dark, light and mobile.

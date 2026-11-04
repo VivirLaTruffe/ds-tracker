@@ -38,12 +38,14 @@ const state = {
   data: null,
   page: 'ds', // 'ds' | 'td'
   view: 'list',
+  theme: 'auto', // 'auto' | 'light' | 'dark'
   tdShowPast: false,
   calMonth: todayStr().slice(0, 7), // 'YYYY-MM'
   filters: { subject: '', type: '', importance: '', revision: '', showPast: false },
   file: 'none', // 'none' | 'ready' | 'needs-permission'
   save: 'idle', // 'idle' | 'saving' | 'saved' | 'error'
   editingId: null,
+  formChecklist: [],
 };
 
 const UNKNOWN_SUBJECT = { id: '', name: 'Sans matière', color: '#6b7280' };
@@ -53,7 +55,37 @@ function subjectById(id) {
 }
 
 function savePrefs() {
-  Local.savePrefs({ page: state.page, view: state.view, filters: state.filters, tdShowPast: state.tdShowPast });
+  Local.savePrefs({
+    page: state.page, view: state.view, filters: state.filters, tdShowPast: state.tdShowPast, theme: state.theme,
+  });
+}
+
+/* ---------------------------------------------------------------------- theme */
+
+// Per-device preference (kept in localStorage, not in the data file): the same data file can
+// be opened on a light laptop and on a dark-themed desktop.
+const THEMES = [['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']];
+const THEME_ICONS = { auto: '\u25D0', light: '\u2600', dark: '\u263E' };
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
+  else delete root.dataset.theme;
+  const entry = THEMES.find((t) => t[0] === theme) || THEMES[0];
+  const btn = $('btn-theme');
+  btn.textContent = `${THEME_ICONS[entry[0]]} ${entry[1]}`;
+  btn.title = `Thème : ${entry[1]} (clic pour changer)`;
+  // Browser / installed-app bar matching the theme on screen.
+  const dark = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = dark ? '#14161d' : '#f5f6fa';
+}
+
+function cycleTheme() {
+  const i = THEMES.findIndex((t) => t[0] === state.theme);
+  state.theme = THEMES[(i + 1) % THEMES.length][0];
+  applyTheme(state.theme);
+  savePrefs();
 }
 
 /* ---------------------------------------------------------------- persistence */
@@ -68,6 +100,16 @@ function commit(mutator) {
   Local.saveData(state.data);
   scheduleFileWrite();
   render();
+}
+
+/**
+ * Same as commit() but without re-rendering: used while typing in a field that lives in the
+ * page (a TD note), where a re-render would rebuild the field and steal the focus.
+ */
+function commitQuiet(mutator) {
+  mutator(state.data);
+  Local.saveData(state.data);
+  scheduleFileWrite();
 }
 
 function scheduleFileWrite() {
@@ -296,13 +338,52 @@ function renderExamCard(exam) {
       h('div', { class: 'exam-meta' },
         h('span', {}, when),
         h('span', { class: 'badge' }, type ? type.label : 'Autre'),
-        h('span', { class: `badge imp-${exam.importance}` }, importance.label)),
-      exam.notes && h('div', { class: 'exam-notes' }, exam.notes)),
+        h('span', { class: `badge imp-${exam.importance}` }, importance.label),
+        exam.source && h('span', { class: 'badge from-schedule', title: 'Ajouté automatiquement depuis ton planning' }, 'Planning')),
+      exam.notes && h('div', { class: 'exam-notes' }, exam.notes),
+      renderChecklist(exam)),
     h('div', { class: 'exam-side' },
       h('label', { class: 'check revised-toggle' + (exam.revised ? ' done' : '') },
         h('input', { type: 'checkbox', checked: exam.revised, onchange: () => toggleRevised(exam.id) }),
         exam.revised ? 'Révisé' : 'Révisions à finir'),
       h('button', { type: 'button', onclick: () => openExamDialog(exam.id) }, 'Modifier')));
+}
+
+/** Exams whose chapter list is unfolded on their card (kept across re-renders). */
+const openChecklists = new Set();
+
+function checklistProgress(exam) {
+  const done = exam.checklist.filter((c) => c.done).length;
+  return { done, total: exam.checklist.length };
+}
+
+function toggleChecklistItem(examId, itemId) {
+  commit((data) => {
+    const exam = data.exams.find((e) => e.id === examId);
+    const item = exam && exam.checklist.find((c) => c.id === itemId);
+    if (item) item.done = !item.done;
+  });
+}
+
+/** Chapter list on the card: a progress bar that unfolds into checkboxes. */
+function renderChecklist(exam) {
+  if (!exam.checklist.length) return null;
+  const { done, total } = checklistProgress(exam);
+  const details = h('details', { class: 'checklist', open: openChecklists.has(exam.id) },
+    h('summary', {},
+      h('span', { class: 'progress', vars: { '--p': `${Math.round((done / total) * 100)}%` } }),
+      h('span', { class: done === total ? 'all-done' : '' },
+        done === total ? `Chapitres : tout est revu (${total})` : `Chapitres : ${done} / ${total}`)),
+    h('ul', {}, exam.checklist.map((item) =>
+      h('li', {},
+        h('label', { class: 'check' + (item.done ? ' done' : '') },
+          h('input', { type: 'checkbox', checked: item.done, onchange: () => toggleChecklistItem(exam.id, item.id) }),
+          item.text)))));
+  details.addEventListener('toggle', () => {
+    if (details.open) openChecklists.add(exam.id);
+    else openChecklists.delete(exam.id);
+  });
+  return details;
 }
 
 function renderList() {
@@ -407,6 +488,8 @@ function openExamDialog(id, presetDate) {
   $('f-revised').checked = exam ? exam.revised : false;
   $('f-title').value = exam ? exam.title : '';
   $('f-notes').value = exam ? exam.notes : '';
+  state.formChecklist = exam ? exam.checklist.map((c) => ({ ...c })) : [];
+  renderFormChecklist();
   syncDurationChips();
   $('exam-dialog').showModal();
   if (!exam) $(presetDate ? 'f-subject' : 'f-date').focus();
@@ -437,11 +520,12 @@ function submitExamForm(event) {
     importance: checked ? Number(checked.value) : 2,
     revised: $('f-revised').checked,
     notes: $('f-notes').value.trim(),
+    checklist: state.formChecklist.map((c) => ({ ...c })),
   };
   commit((data) => {
     const existing = state.editingId && data.exams.find((e) => e.id === state.editingId);
     if (existing) Object.assign(existing, fields);
-    else data.exams.push({ id: newId(), ...fields });
+    else data.exams.push({ id: newId(), source: '', sourceKey: '', ...fields });
   });
   $('exam-dialog').close();
   toast(state.editingId ? 'DS modifié.' : 'DS ajouté.');
@@ -449,11 +533,56 @@ function submitExamForm(event) {
 
 function deleteEditedExam() {
   if (!state.editingId) return;
-  if (!confirm('Supprimer ce DS ?')) return;
+  const exam = state.data.exams.find((e) => e.id === state.editingId);
+  const fromSchedule = exam && exam.source;
+  if (!confirm(fromSchedule
+    ? 'Supprimer ce DS ? Il ne sera pas recréé au prochain import du planning.'
+    : 'Supprimer ce DS ?')) return;
   const id = state.editingId;
-  commit((data) => { data.exams = data.exams.filter((e) => e.id !== id); });
+  commit((data) => {
+    const target = data.exams.find((e) => e.id === id);
+    if (target) dismissImportedDs(data, target);
+    data.exams = data.exams.filter((e) => e.id !== id);
+  });
   $('exam-dialog').close();
   toast('DS supprimé.');
+}
+
+/** Chapter list inside the exam form; edited on a copy, saved with the form. */
+function renderFormChecklist() {
+  const list = $('f-checklist');
+  list.replaceChildren(...state.formChecklist.map((item, index) =>
+    h('li', {},
+      h('label', { class: 'check' + (item.done ? ' done' : '') },
+        h('input', {
+          type: 'checkbox',
+          checked: item.done,
+          onchange: (ev) => { item.done = ev.target.checked; renderFormChecklist(); },
+        }),
+        item.text),
+      h('button', {
+        type: 'button',
+        class: 'ghost icon',
+        title: 'Retirer ce chapitre',
+        aria: { label: `Retirer ${item.text}` },
+        onclick: () => { state.formChecklist.splice(index, 1); renderFormChecklist(); },
+      }, '×'))));
+  const { done, total } = checklistProgress({ checklist: state.formChecklist });
+  $('f-checklist-count').textContent = total ? `${done} / ${total}` : '';
+}
+
+function addFormChecklistItem() {
+  const input = $('f-checklist-new');
+  const text = input.value.trim();
+  if (!text) return;
+  if (state.formChecklist.length >= MAX_CHECKLIST) {
+    toast(`${MAX_CHECKLIST} chapitres au maximum.`);
+    return;
+  }
+  state.formChecklist.push({ id: newId(), text: text.slice(0, 120), done: false });
+  input.value = '';
+  renderFormChecklist();
+  input.focus();
 }
 
 /* ----------------------------------------------------------- subjects dialog */
@@ -628,6 +757,12 @@ function bindEvents() {
   }
   bindTdEvents();
   $('btn-new').addEventListener('click', () => openExamDialog(null));
+  $('f-checklist-add').addEventListener('click', addFormChecklistItem);
+  // Entrée dans le champ ajoute le chapitre au lieu d'envoyer tout le formulaire.
+  $('f-checklist-new').addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); addFormChecklistItem(); }
+  });
+  $('btn-theme').addEventListener('click', cycleTheme);
   $('exam-form').addEventListener('submit', submitExamForm);
   $('btn-cancel').addEventListener('click', () => $('exam-dialog').close());
   $('btn-delete').addEventListener('click', deleteEditedExam);
@@ -670,6 +805,36 @@ function bindEvents() {
   });
 }
 
+/* ------------------------------------------------------------ offline / install */
+
+/**
+ * Offline support: a service worker keeps a copy of the app so it opens without a network
+ * (and can be installed). Only over http(s): opening index.html as a file still works, just
+ * without the offline copy.
+ */
+function setupInstall() {
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline copy unavailable */ });
+  }
+  let prompt = null;
+  window.addEventListener('beforeinstallprompt', (ev) => {
+    ev.preventDefault();
+    prompt = ev;
+    $('btn-install').hidden = false;
+  });
+  $('btn-install').addEventListener('click', async () => {
+    if (!prompt) return;
+    prompt.prompt();
+    await prompt.userChoice;
+    prompt = null;
+    $('btn-install').hidden = true;
+  });
+  window.addEventListener('appinstalled', () => {
+    $('btn-install').hidden = true;
+    toast('Appli installée : elle fonctionne aussi hors ligne.');
+  });
+}
+
 async function init() {
   state.data = Local.loadData() || defaultData();
   const prefs = Local.loadPrefs();
@@ -677,6 +842,10 @@ async function init() {
   if (prefs.page === 'ds' || prefs.page === 'td') state.page = prefs.page;
   state.tdShowPast = prefs.tdShowPast === true;
   if (prefs.filters && typeof prefs.filters === 'object') Object.assign(state.filters, prefs.filters);
+  if (THEMES.some((t) => t[0] === prefs.theme)) state.theme = prefs.theme;
+  applyTheme(state.theme);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme(state.theme));
+  setupInstall();
 
   fillExamFormOptions();
   bindEvents();
