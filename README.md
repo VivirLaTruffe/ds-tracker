@@ -34,6 +34,10 @@ Plus filters (subject, type, importance, revision status) and a summary of what 
 **Light or dark**: the theme button in the header cycles between *Auto* (follows the system),
 *Clair* and *Sombre*. The choice is remembered on each device.
 
+**Into your calendar**: *Ajouter à mon agenda* downloads your upcoming exams as an `.ics` file.
+Open it on your phone or computer and they land in its calendar, each with a reminder the day
+before (chapters to revise in the description).
+
 The header switches between two pages: **DS Tracker** (exams) and **TD Tracker** (see below).
 
 ## TD Tracker: what to prepare before class

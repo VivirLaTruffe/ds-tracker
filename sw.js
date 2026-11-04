@@ -10,7 +10,7 @@
  */
 'use strict';
 
-const CACHE = 'ds-tracker-v3';
+const CACHE = 'ds-tracker-v4';
 const FILES = [
   './',
   'index.html',

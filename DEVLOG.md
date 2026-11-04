@@ -255,3 +255,26 @@ dark background really applied), chapter list from the form and from the card, v
 import with subject/duration/room, re-import without duplicate, past DS ignored, TD note saved,
 deleted DS not recreated, service worker active, page reload **offline**, no horizontal scroll
 at 390 px, no console error. Screenshots checked in dark, light and mobile.
+
+---
+
+## 2026-11-04 — Export to the phone's calendar
+
+One of the ideas listed earlier in this log. *Ajouter à mon agenda* (DS page) downloads the
+upcoming exams as an `.ics` file (`buildICS` in `js/ics.js`): open it on a phone or computer and
+they land in its calendar.
+
+- Times are written as **floating local times** (no time zone): the calendar shows the hour
+  typed in the app. An exam without a start time becomes an all-day event; one without a
+  duration lasts an hour.
+- Each event carries a **reminder the day before** (`VALARM`, `TRIGGER:-P1D`), and the chapter
+  checklist in its description (`[x]` / `[ ]`).
+- Text is escaped (commas, semicolons, backslashes, line breaks) and lines are folded at 75
+  octets, as RFC 5545 requires. Stable UIDs (`<exam id>@ds-tracker`): importing a newer export
+  updates the events instead of duplicating them in calendars that honour UIDs.
+
+Tested in Chromium: file name, past exam excluded, reminders, all-day event, start/end times,
+escaping, chapters, line length (max 75 octets), and the file read back by the app's own
+iCalendar reader. A first version of the test failed on the chapters: they sat across a folded
+line, exactly as the standard wants — the test now unfolds before searching, like a calendar
+does. Service worker cache bumped to `v4` (new code).

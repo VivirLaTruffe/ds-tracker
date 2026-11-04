@@ -757,6 +757,7 @@ function bindEvents() {
   }
   bindTdEvents();
   $('btn-new').addEventListener('click', () => openExamDialog(null));
+  $('btn-ics-export').addEventListener('click', exportExamsToCalendar);
   $('f-checklist-add').addEventListener('click', addFormChecklistItem);
   // Entrée dans le champ ajoute le chapitre au lieu d'envoyer tout le formulaire.
   $('f-checklist-new').addEventListener('keydown', (ev) => {
@@ -803,6 +804,25 @@ function bindEvents() {
   window.addEventListener('beforeunload', (ev) => {
     if (writePending || writeInFlight) ev.preventDefault();
   });
+}
+
+/* ---------------------------------------------------------------- calendar export */
+
+/** Upcoming exams as an .ics file: opened on a phone, they land in its calendar. */
+function exportExamsToCalendar() {
+  const upcoming = state.data.exams.filter((e) => daysUntil(e.date) >= 0).sort((a, b) => examSortKey(a).localeCompare(examSortKey(b)));
+  if (!upcoming.length) {
+    toast('Aucun DS à venir à exporter.');
+    return;
+  }
+  const blob = new Blob([buildICS(upcoming, subjectById)], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = h('a', { href: url, download: `ds-tracker-${todayStr()}.ics` });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`${plural(upcoming.length, 'DS exporté', 'DS exportés')} : ouvre le fichier avec ton agenda (rappel la veille).`);
 }
 
 /* ------------------------------------------------------------ offline / install */
