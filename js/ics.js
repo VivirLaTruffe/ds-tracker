@@ -64,3 +64,71 @@ function finishIcsEvent(raw) {
     location: icsUnescape(raw.LOCATION || '').slice(0, 120),
   };
 }
+
+/* ---- Writing: the exams as an iCalendar file, for a phone or desktop calendar ---- */
+
+function icsEscape(text) {
+  return String(text).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+
+/** Folds a content line at 75 octets, as RFC 5545 asks (continuation lines start with a space). */
+function icsFold(line) {
+  const bytes = new TextEncoder().encode(line);
+  if (bytes.length <= 75) return line;
+  const out = [];
+  let current = '';
+  let size = 0;
+  for (const ch of line) {
+    const n = new TextEncoder().encode(ch).length;
+    if (size + n > (out.length ? 74 : 75)) {
+      out.push(current);
+      current = '';
+      size = 0;
+    }
+    current += ch;
+    size += n;
+  }
+  out.push(current);
+  return out.join('\r\n ');
+}
+
+function icsLocalStamp(dateStr, time) {
+  return `${dateStr.replace(/-/g, '')}T${time.replace(':', '')}00`;
+}
+
+/**
+ * Upcoming exams as an .ics file. Times are written as floating local times (no time zone):
+ * the calendar shows them at the hour typed in the app, wherever the phone is. An exam without
+ * a start time becomes an all-day event. Each event has a reminder the day before.
+ */
+function buildICS(exams, subjectOf) {
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//DS Tracker//FR', 'CALSCALE:GREGORIAN',
+    'X-WR-CALNAME:DS Tracker'];
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+  for (const exam of exams) {
+    const subject = subjectOf(exam.subjectId);
+    const type = EXAM_TYPES.find((t) => t.id === exam.type);
+    const summary = ['DS', subject.name, exam.title].filter(Boolean).join(' — ');
+    const details = [type ? type.label : '', exam.notes];
+    if (exam.checklist.length) {
+      details.push('Chapitres :\n' + exam.checklist.map((c) => `${c.done ? '[x]' : '[ ]'} ${c.text}`).join('\n'));
+    }
+    lines.push('BEGIN:VEVENT', `UID:${exam.id}@ds-tracker`, `DTSTAMP:${stamp}`, `SUMMARY:${icsEscape(summary)}`);
+    if (exam.time) {
+      const start = parseLocalDateTime(`${exam.date}T${exam.time}`);
+      const end = new Date(start.getTime() + (exam.duration || 60) * 60000);
+      lines.push(`DTSTART:${icsLocalStamp(exam.date, exam.time)}`,
+        `DTEND:${icsLocalStamp(toDateStr(end), `${pad2(end.getHours())}:${pad2(end.getMinutes())}`)}`);
+    } else {
+      const next = parseDateStr(exam.date);
+      next.setDate(next.getDate() + 1);
+      lines.push(`DTSTART;VALUE=DATE:${exam.date.replace(/-/g, '')}`, `DTEND;VALUE=DATE:${toDateStr(next).replace(/-/g, '')}`);
+    }
+    const description = details.filter(Boolean).join('\n\n');
+    if (description) lines.push(`DESCRIPTION:${icsEscape(description)}`);
+    lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEscape(summary)} demain`, 'TRIGGER:-P1D',
+      'END:VALARM', 'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.map(icsFold).join('\r\n') + '\r\n';
+}

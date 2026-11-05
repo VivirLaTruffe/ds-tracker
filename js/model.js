@@ -1,7 +1,7 @@
 /* Data model: constants, defaults, validation and small date helpers. No DOM here. */
 'use strict';
 
-const DATA_VERSION = 2;
+const DATA_VERSION = 3;
 
 const EXAM_TYPES = [
   { id: 'qcm', label: 'QCM' },
@@ -32,6 +32,8 @@ const TD_LEAD_OPTIONS = [
 ];
 const DEFAULT_TD_LEAD_DAYS = 1;
 const MAX_EVENTS = 5000;
+const MAX_CHECKLIST = 50;
+const MAX_DISMISSED = 500;
 
 const SUBJECT_COLORS = [
   '#4f6df5', '#e5484d', '#30a46c', '#f5a524', '#8e4ec6', '#0091b2',
@@ -75,7 +77,19 @@ function defaultData() {
     schedule: { events: [], importedAt: '', source: '' },
     aliases: {},
     tdDone: {},
-    settings: { tdLeadDays: DEFAULT_TD_LEAD_DAYS },
+    tdNotes: {},
+    dsDismissed: [],
+    settings: { tdLeadDays: DEFAULT_TD_LEAD_DAYS, autoImportDs: true },
+  };
+}
+
+/** A checklist item ({id, text, done}) from untrusted input, or null. */
+function sanitizeChecklistItem(item) {
+  if (!item || typeof item.text !== 'string' || !item.text.trim()) return null;
+  return {
+    id: typeof item.id === 'string' && item.id ? item.id.slice(0, 60) : newId(),
+    text: item.text.trim().slice(0, 120),
+    done: item.done === true,
   };
 }
 
@@ -126,6 +140,11 @@ function sanitizeData(raw) {
       importance: IMPORTANCE_LEVELS.some((l) => l.id === e.importance) ? e.importance : 2,
       revised: e.revised === true,
       notes: typeof e.notes === 'string' ? e.notes.slice(0, 2000) : '',
+      // v3: chapters to revise, and the timetable event an exam was imported from.
+      checklist: (Array.isArray(e.checklist) ? e.checklist : [])
+        .map(sanitizeChecklistItem).filter(Boolean).slice(0, MAX_CHECKLIST),
+      source: typeof e.source === 'string' ? e.source.slice(0, 200) : '',
+      sourceKey: typeof e.sourceKey === 'string' ? e.sourceKey.slice(0, 260) : '',
     });
   });
 
@@ -164,6 +183,18 @@ function sanitizeData(raw) {
   const lead = raw.settings && raw.settings.tdLeadDays;
   const tdLeadDays = TD_LEAD_OPTIONS.some((o) => o.id === lead) ? lead : DEFAULT_TD_LEAD_DAYS;
 
+  // ---- v3: a note per TD, exams auto-imported from the timetable and later deleted by the
+  // user (so a re-import does not bring them back), and the auto-import switch.
+  const tdNotes = {};
+  if (raw.tdNotes && typeof raw.tdNotes === 'object' && !Array.isArray(raw.tdNotes)) {
+    for (const [k, v] of Object.entries(raw.tdNotes)) {
+      if (k !== '__proto__' && typeof v === 'string' && v.trim()) tdNotes[k.slice(0, 200)] = v.slice(0, 1000);
+    }
+  }
+  const dsDismissed = (Array.isArray(raw.dsDismissed) ? raw.dsDismissed : [])
+    .filter((k) => typeof k === 'string' && k).map((k) => k.slice(0, 260)).slice(-MAX_DISMISSED);
+  const autoImportDs = !(raw.settings && raw.settings.autoImportDs === false);
+
   return {
     version: DATA_VERSION,
     subjects,
@@ -175,7 +206,9 @@ function sanitizeData(raw) {
     },
     aliases,
     tdDone,
-    settings: { tdLeadDays },
+    tdNotes,
+    dsDismissed,
+    settings: { tdLeadDays, autoImportDs },
   };
 }
 

@@ -19,7 +19,8 @@ The interface is in French. For each exam you record:
 | Duration | Minutes, with quick presets (30 min → 4 h) |
 | Importance | Faible, Normale, Élevée, Critique |
 | Revision | "Finished revising" checkbox, one click from the list |
-| Notes | Free text (allowed documents, chapters, room…) |
+| Chapters | A checklist of chapters to revise, with a progress bar on the card; tick them from the list |
+| Notes | Free text (allowed documents, room…) |
 
 Two views:
 
@@ -29,6 +30,13 @@ Two views:
 - **Calendar** — month grid, one coloured chip per exam (✓ once revised); click a day to add an exam.
 
 Plus filters (subject, type, importance, revision status) and a summary of what is left to revise.
+
+**Light or dark**: the theme button in the header cycles between *Auto* (follows the system),
+*Clair* and *Sombre*. The choice is remembered on each device.
+
+**Into your calendar**: *Ajouter à mon agenda* downloads your upcoming exams as an `.ics` file.
+Open it on your phone or computer and they land in its calendar, each with a reminder the day
+before (chapters to revise in the description).
 
 The header switches between two pages: **DS Tracker** (exams) and **TD Tracker** (see below).
 
@@ -44,8 +52,15 @@ you sit in it — the day before and the day itself (configurable up to 3 days a
    "prepared" checkbox. Course names (`Mathématiques`, `Electrostatique`…) can be linked to your
    own subjects in **Matières des cours**; names that resemble a subject are matched automatically.
 
+4. Each TD card has a **note** (exercises to finish, questions for the teacher…).
+5. **DS found in the timetable are added to the DS Tracker automatically** (date, time, duration,
+   room, and subject when the course name matches one). If a DS moves in the timetable, its date
+   follows on the next import; what you added (chapters, notes, importance) is kept. A DS you
+   delete is not brought back by a later import. The *Ajouter les DS du planning* switch turns
+   this off.
+
 Re-import when your timetable changes: the days covered by the new file are replaced, the rest is
-kept, and your "prepared" ticks are preserved. The app cannot log in to ADE for you (it is a static
+kept, and your "prepared" ticks and TD notes are preserved. The app cannot log in to ADE for you (it is a static
 page with no server), so importing is a manual step.
 
 ## Your data stays yours
@@ -74,6 +89,11 @@ python -m http.server 8000
 ```
 
 then visit <http://localhost:8000>. It can also be hosted as-is on GitHub Pages.
+
+**Offline and installable**: served over http(s) (GitHub Pages, or the local server above), the
+app keeps a copy of itself and opens without a network. Chrome and Edge show an *Installer
+l'appli* button to add it to the desktop or the phone's home screen. Opened directly as a file,
+it still works, just without the offline copy.
 
 ## License
 

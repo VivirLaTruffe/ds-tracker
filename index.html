@@ -4,8 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f5f6fa">
   <title>DS Tracker</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    // Applied before the first paint: a dark-theme user should never see a white flash.
+    try {
+      var p = JSON.parse(localStorage.getItem('ds-tracker:prefs:v1')) || {};
+      if (p.theme === 'light' || p.theme === 'dark') document.documentElement.dataset.theme = p.theme;
+    } catch (e) { /* ignore */ }
+  </script>
 </head>
 <body>
   <header class="topbar">
@@ -17,6 +28,8 @@
       </nav>
       <div class="topbar-actions">
         <span id="save-status" class="status" role="status"></span>
+        <button type="button" id="btn-install" hidden>Installer l'appli</button>
+        <button type="button" id="btn-theme" class="ghost">Auto</button>
         <button type="button" id="btn-file" hidden>Fichier de données</button>
         <button type="button" id="btn-export">Exporter</button>
         <button type="button" id="btn-import">Importer</button>
@@ -43,6 +56,7 @@
         <select id="flt-revision" aria-label="Filtrer par révisions"></select>
         <label class="check" id="flt-past-wrap"><input type="checkbox" id="flt-past"> Voir les DS passés</label>
       </div>
+      <button type="button" id="btn-ics-export" title="Fichier .ics à ouvrir avec l'agenda du téléphone ou de l'ordinateur">Ajouter à mon agenda</button>
       <button type="button" id="btn-new" class="primary">+ Nouveau DS</button>
     </section>
 
@@ -60,6 +74,8 @@
         <select id="td-lead" aria-label="Quand préparer un TD"></select>
       </label>
       <label class="check"><input type="checkbox" id="td-past"> Voir les TD passés</label>
+      <label class="check" title="Les DS trouvés dans ton planning sont ajoutés au DS Tracker à chaque import">
+        <input type="checkbox" id="td-auto-ds"> Ajouter les DS du planning</label>
       <span id="td-schedule-info" class="muted small"></span>
     </section>
 
@@ -98,7 +114,15 @@
         </fieldset>
         <label class="span2 check"><input type="checkbox" id="f-revised"> J'ai fini de réviser pour ce DS</label>
         <label class="span2">Titre (facultatif) <input type="text" id="f-title" maxlength="120" placeholder="ex. DS n°1 — chapitres 1 à 3"></label>
-        <label class="span2">Notes <textarea id="f-notes" rows="3" maxlength="2000" placeholder="Documents autorisés, salle, chapitres…"></textarea></label>
+        <label class="span2">Notes <textarea id="f-notes" rows="3" maxlength="2000" placeholder="Documents autorisés, salle…"></textarea></label>
+        <fieldset class="span2 checklist-editor">
+          <legend>Chapitres à réviser <span id="f-checklist-count" class="muted"></span></legend>
+          <ul id="f-checklist" class="checklist-items"></ul>
+          <div class="row">
+            <input type="text" id="f-checklist-new" maxlength="120" placeholder="ex. Chapitre 3 — Intégrales" aria-label="Nouveau chapitre">
+            <button type="button" id="f-checklist-add">Ajouter</button>
+          </div>
+        </fieldset>
       </div>
       <p id="form-error" class="error" role="alert" hidden></p>
       <div class="actions">

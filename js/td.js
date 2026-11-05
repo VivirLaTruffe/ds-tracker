@@ -18,6 +18,44 @@ function tdCountdown(item) {
   return { big: `J-${d}`, small: at };
 }
 
+/** Ids of the TD cards whose note editor is open (kept across re-renders). */
+const openTdNotes = new Set();
+
+function saveTdNote(key, text) {
+  commitQuiet((data) => {
+    const value = text.trim().slice(0, 1000);
+    if (value) data.tdNotes[key] = value;
+    else delete data.tdNotes[key];
+  });
+}
+
+function renderTdNote(item) {
+  const note = state.data.tdNotes[item.key] || '';
+  if (!openTdNotes.has(item.key)) {
+    return h('button', {
+      type: 'button',
+      class: 'note-chip' + (note ? ' has-note' : ''),
+      title: note ? 'Modifier la note' : 'Ajouter une note',
+      onclick: () => { openTdNotes.add(item.key); render(); focusTdNote(item.key); },
+    }, note ? note : '+ Note');
+  }
+  return h('textarea', {
+    class: 'td-note',
+    rows: 2,
+    maxLength: 1000,
+    placeholder: 'Exercices à faire, questions pour le prof…',
+    value: note,
+    data: { key: item.key },
+    oninput: (ev) => saveTdNote(item.key, ev.target.value),
+    onblur: () => { openTdNotes.delete(item.key); render(); },
+  });
+}
+
+function focusTdNote(key) {
+  const el = document.querySelector(`textarea.td-note[data-key="${CSS.escape(key)}"]`);
+  if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+}
+
 function toggleTdDone(key) {
   commit((data) => {
     if (data.tdDone[key]) delete data.tdDone[key];
@@ -49,7 +87,8 @@ function renderTdCard(item, urgency) {
       item.suffix && [h('span', { class: 'sep' }, ' — '), item.suffix]),
     h('div', { class: 'exam-meta' },
       h('span', {}, when),
-      !subject && h('button', { type: 'button', class: 'badge unassigned link', onclick: openMappingDialog }, 'Associer une matière'))),
+      !subject && h('button', { type: 'button', class: 'badge unassigned link', onclick: openMappingDialog }, 'Associer une matière')),
+    renderTdNote(item)),
   h('div', { class: 'exam-side' },
     h('label', { class: 'check revised-toggle' + (item.done ? ' done' : '') },
       h('input', { type: 'checkbox', checked: item.done, onchange: () => toggleTdDone(item.key) }),
@@ -100,6 +139,7 @@ function scheduleRange(events) {
 function renderTdToolbar(range) {
   $('td-lead').replaceChildren(...TD_LEAD_OPTIONS.map((o) => option(String(o.id), o.label, o.id === state.data.settings.tdLeadDays)));
   $('td-past').checked = state.tdShowPast;
+  $('td-auto-ds').checked = state.data.settings.autoImportDs;
   const sch = state.data.schedule;
   const fmt = { day: 'numeric', month: 'short' };
   $('td-schedule-info').textContent = range
@@ -223,9 +263,16 @@ async function importIcsFile(event) {
   try {
     const events = parseICS(await file.text());
     if (!events.length) throw new Error('Aucune séance trouvée dans ce fichier.');
-    commit((data) => mergeSchedule(data, events, file.name));
+    let ds = { added: 0, updated: 0 };
+    commit((data) => {
+      mergeSchedule(data, events, file.name);
+      ds = syncDsFromSchedule(data, events);
+    });
     const tdCount = events.filter((e) => classifyEvent(e.title) === 'td').length;
-    toast(`${plural(events.length, 'séance importée', 'séances importées')}, dont ${plural(tdCount, 'TD', 'TD')}.`);
+    const parts = [`${plural(events.length, 'séance importée', 'séances importées')}, dont ${plural(tdCount, 'TD', 'TD')}`];
+    if (ds.added) parts.push(`${plural(ds.added, 'DS ajouté', 'DS ajoutés')} au DS Tracker`);
+    if (ds.updated) parts.push(`${plural(ds.updated, 'DS déplacé', 'DS déplacés')}`);
+    toast(parts.join(' · ') + '.');
     const missing = countUnassignedLabels(state.data);
     if (missing) {
       showBanner(`${plural(missing, 'cours de TD n\'est associé', 'cours de TD ne sont associés')} à aucune matière.`, 'warn',
@@ -245,6 +292,10 @@ function bindTdEvents() {
   $('btn-mapping-close').addEventListener('click', () => $('mapping-dialog').close());
   $('td-lead').addEventListener('change', (ev) => {
     commit((data) => { data.settings.tdLeadDays = Number(ev.target.value); });
+  });
+  $('td-auto-ds').addEventListener('change', (ev) => {
+    commit((data) => { data.settings.autoImportDs = ev.target.checked; });
+    toast(ev.target.checked ? 'Les DS du planning seront ajoutés automatiquement.' : 'Import automatique des DS désactivé.');
   });
   $('td-past').addEventListener('change', (ev) => {
     state.tdShowPast = ev.target.checked;
